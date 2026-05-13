@@ -1,20 +1,36 @@
 import React, { useState } from "react";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { Link, useNavigate } from "react-router-dom";
+import { auth } from "../Firebase/firebase.conf";
 import "./auth.css";
 
 export default function Signup() {
     const navigate = useNavigate();
     const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
     const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+
+    function getSignupErrorMessage(code) {
+        if (code === "auth/email-already-in-use") {
+            return "This email is already used";
+        }
+        if (code === "auth/invalid-email") {
+            return "Please enter a valid email";
+        }
+        if (code === "auth/weak-password") {
+            return "Password should be at least 6 characters";
+        }
+        return "Sign up failed. Please try again";
+    }
 
     function onChange(e) {
         setForm({ ...form, [e.target.name]: e.target.value });
         setError("");
     }
 
-    function onSubmit(e) {
+    async function onSubmit(e) {
         e.preventDefault();
-        if (!form.name || !form.email || !form.password) {
+        if (!form.name || !form.email || !form.password || !form.confirm) {
             setError("All fields are required");
             return;
         }
@@ -22,9 +38,17 @@ export default function Signup() {
             setError("Passwords do not match");
             return;
         }
-        // TODO: replace with real signup logic (Firebase / API)
-        console.log("Signup payload:", { name: form.name, email: form.email });
-        navigate("/");
+
+        try {
+            setLoading(true);
+            const userCredential = await createUserWithEmailAndPassword(auth, form.email, form.password);
+            await updateProfile(userCredential.user, { displayName: form.name });
+            navigate("/");
+        } catch (firebaseError) {
+            setError(getSignupErrorMessage(firebaseError.code));
+        } finally {
+            setLoading(false);
+        }
     }
 
     function handleGoogleSignup() {
@@ -55,7 +79,7 @@ export default function Signup() {
                     <input name="confirm" type="password" value={form.confirm} onChange={onChange} className="auth-input" placeholder="Repeat password" />
                 </label>
 
-                <button type="submit" className="auth-button">Sign up</button>
+                <button type="submit" className="auth-button" disabled={loading}>{loading ? "Creating account..." : "Sign up"}</button>
 
                 <div className="auth-divider"><span>or</span></div>
 

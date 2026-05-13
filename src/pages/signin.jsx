@@ -1,26 +1,49 @@
 import React, { useState } from "react";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { Link, useNavigate } from "react-router-dom";
+import { auth } from "../Firebase/firebase.conf";
 import "./auth.css";
 
 export default function Signin() {
     const navigate = useNavigate();
     const [form, setForm] = useState({ email: "", password: "" });
     const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+
+    function getSigninErrorMessage(code) {
+        if (code === "auth/invalid-credential") {
+            return "Wrong email or password";
+        }
+        if (code === "auth/user-disabled") {
+            return "This account has been disabled";
+        }
+        if (code === "auth/too-many-requests") {
+            return "Too many attempts. Try again later";
+        }
+        return "Sign in failed. Please try again";
+    }
 
     function onChange(e) {
         setForm({ ...form, [e.target.name]: e.target.value });
         setError("");
     }
 
-    function onSubmit(e) {
+    async function onSubmit(e) {
         e.preventDefault();
         if (!form.email || !form.password) {
             setError("Email and password are required");
             return;
         }
-        // TODO: replace with real signin logic
-        console.log("Signin payload:", form);
-        navigate("/");
+
+        try {
+            setLoading(true);
+            await signInWithEmailAndPassword(auth, form.email, form.password);
+            navigate("/");
+        } catch (firebaseError) {
+            setError(getSigninErrorMessage(firebaseError.code));
+        } finally {
+            setLoading(false);
+        }
     }
 
     function handleGoogleSignin() {
@@ -43,7 +66,7 @@ export default function Signin() {
                     <input name="password" type="password" value={form.password} onChange={onChange} className="auth-input" placeholder="••••••••" />
                 </label>
 
-                <button type="submit" className="auth-button">Sign in</button>
+                <button type="submit" className="auth-button" disabled={loading}>{loading ? "Signing in..." : "Sign in"}</button>
 
                 <div className="auth-divider"><span>or</span></div>
 
